@@ -2,6 +2,7 @@
 #include <math.h>
 #include <iomanip>
 #include <GL/glut.h>
+#include <GL/freeglut.h> 
 #include <iostream>
 
 #include "../include/MENU.h"
@@ -195,8 +196,9 @@ void time(int value)
 	// Update the angle
 	angle = (angle + 1) % 360;
 
-	glutPostRedisplay();		 // Force a redisplay
-	glutTimerFunc(100, time, 0); // Set the timer to call this function again in 100 milliseconds
+	// glutTimerFunc(100, time, 0); // Set the timer to call this function again in 100 milliseconds
+
+	glutPostRedisplay(); // Force a redisplay
 }
 
 void reshape(int w, int h)
@@ -217,15 +219,15 @@ int main(int argc, char **argv)
 	glutInitWindowSize(800, 800);
 	glutCreateWindow("city");
 
+	
+
 	glutReshapeFunc(reshape);
-
 	glutDisplayFunc(display);
-
 	glutKeyboardFunc(key);
-
 	glutSpecialFunc(special);
-
-	// glutTimerFunc(0, time, 0);
+	glutMouseFunc(mouseXPLORE);
+	glutMotionFunc(motionXPLORE);
+	glutTimerFunc(0, time, 0);
 
 	glutMainLoop();
 

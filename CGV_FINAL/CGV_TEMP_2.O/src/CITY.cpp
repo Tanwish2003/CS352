@@ -56,7 +56,7 @@ void loadTexture(const char *filename, GLuint *texture)
 void loadTextures()
 {
   loadTexture("./src/hoarding.png", &texture1);
-  loadTexture("./src/hoarding3.png", &texture2);
+  loadTexture("./src/hoarding2.png", &texture2);
 }
 
 void drawBillboard(float x, float y, float z, float width, float height)
@@ -85,7 +85,8 @@ void drawBillboard(float x, float y, float z, float width, float height)
     glBindTexture(GL_TEXTURE_2D, texture1); // Bind the first texture
   else
     glBindTexture(GL_TEXTURE_2D, texture2); // Bind the second texture
-
+  
+  
   glBegin(GL_QUADS);
   glTexCoord2f(1.0f, 1.0f);
   glVertex3f(x, y, z); // Swap the x-coordinate
@@ -1042,6 +1043,8 @@ void makeBuildings()
   glTranslatef(-1450, 0, -600);
   SmallBridge();
   glPopMatrix();
+  glDeleteTextures(1, &texture1);
+  glDeleteTextures(1, &texture2);
 }
 
 //----------------------------------ROADS-----------------------------------------
