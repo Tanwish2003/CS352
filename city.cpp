@@ -2,6 +2,7 @@
 #include <GL/glu.h>
 #include <math.h>
 #include <iostream>
+#include <soil2/SOIL2.h> // Include the SOIL2 header file
 using namespace std;
 
 float cc[20][2];
@@ -11,16 +12,31 @@ static float angle = 0.0f; // Camera rotation angle
 GLfloat light_position[] = {0.0, 0.0, 0.0, 1.0}; // Light source position
 bool isDaylight = true;                          // Whether it's currently daylight
 
+// Function to set the material color for OpenGL rendering
 void setMaterialColor(float r, float g, float b)
 {
+    // Create an array for the ambient component of the material, scaled by 0.2
     GLfloat material_ambient[] = {r * 0.2f, g * 0.2f, b * 0.2f, 1.0f};
+
+    // Create an array for the diffuse component of the material, scaled by 0.8
     GLfloat material_diffuse[] = {r * 0.8f, g * 0.8f, b * 0.8f, 1.0f};
+
+    // Create an array for the specular component of the material, scaled by 0.9
     GLfloat material_specular[] = {r * 0.9f, g * 0.9f, b * 0.9f, 1.0f};
+
+    // Create an array for the shininess of the material, set to 50
     GLfloat material_shininess[] = {50.0f};
 
+    // Set the ambient material parameter for the front face of polygons
     glMaterialfv(GL_FRONT, GL_AMBIENT, material_ambient);
+
+    // Set the diffuse material parameter for the front face of polygons
     glMaterialfv(GL_FRONT, GL_DIFFUSE, material_diffuse);
+
+    // Set the specular material parameter for the front face of polygons
     glMaterialfv(GL_FRONT, GL_SPECULAR, material_specular);
+
+    // Set the shininess material parameter for the front face of polygons
     glMaterialfv(GL_FRONT, GL_SHININESS, material_shininess);
 }
 
@@ -48,6 +64,159 @@ void drawSun(void)
     glPopMatrix();                                                         // Restore transformation
 }
 
+// Declare a texture
+GLuint texture;
+
+// Declare two more textures
+GLuint texture1, texture2;
+
+// Function to load a texture from a file
+void loadTexture(const char *filename, GLuint *texture)
+{
+    // Declare variables for the width and height of the image
+    int width, height;
+
+    // Load the image from the file
+    unsigned char *image = SOIL_load_image(filename, &width, &height, 0, SOIL_LOAD_RGB);
+
+    // If the image failed to load, print an error message and return
+    if (image == NULL)
+    {
+        fprintf(stderr, "Failed to load image file: %s\n", SOIL_last_result());
+        return;
+    }
+
+    // Generate a texture ID
+    glGenTextures(1, texture);
+
+    // Bind the texture to a texture target
+    glBindTexture(GL_TEXTURE_2D, *texture);
+
+    // Specify a two-dimensional texture image
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+
+    // Set the texture minifying function to linear interpolation
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+    // Set the texture magnification function to linear interpolation
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // Free the image data
+    SOIL_free_image_data(image);
+
+    // Unbind the texture
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+// Function to load multiple textures
+void loadTextures()
+{
+    // Load the first texture
+    loadTexture("hoarding.png", &texture1);
+
+    // Load the second texture
+    loadTexture("hoarding3.png", &texture2);
+}
+
+// Function to draw a billboard at a specific location with a given width and height
+void drawBillboard(float x, float y, float z, float width, float height)
+{
+    // Set the color to a specific shade of grey
+    glColor3f(0.741, 0.718, 0.420);
+
+    // Begin drawing quadrilaterals
+    glBegin(GL_QUADS);
+
+    // Draw the drawStand of the billboard as a quadrilateral
+    glVertex3f(x + width / 2 - 2, 0, z);
+    glVertex3f(x + width / 2 + 2, 0, z);
+    glVertex3f(x + width / 2 + 2, y, z);
+    glVertex3f(x + width / 2 - 2, y, z);
+
+    // End drawing
+    glEnd();
+
+    // Enable 2D texturing
+    glEnable(GL_TEXTURE_2D);
+
+    // Get the current time since the start of the program
+    unsigned int currentTime = glutGet(GLUT_ELAPSED_TIME);
+
+    // Determine which texture to use based on the current time
+    int textureIndex = (currentTime / 4000) % 2;
+
+    // Bind the appropriate texture
+    if (textureIndex == 0)
+        glBindTexture(GL_TEXTURE_2D, texture1); // Bind the first texture
+    else
+        glBindTexture(GL_TEXTURE_2D, texture2); // Bind the second texture
+
+    // Begin drawing quadrilaterals
+    glBegin(GL_QUADS);
+
+    // Draw the billboard as a textured quadrilateral
+    glTexCoord2f(1.0f, 1.0f);
+    glVertex3f(x, y, z);
+    glTexCoord2f(0.0f, 1.0f);
+    glVertex3f(x + width, y, z);
+    glTexCoord2f(0.0f, 0.0f);
+    glVertex3f(x + width, y + height, z);
+    glTexCoord2f(1.0f, 0.0f);
+    glVertex3f(x, y + height, z);
+
+    // End drawing
+    glEnd();
+
+    // Unbind the texture
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    // Disable 2D texturing
+    glDisable(GL_TEXTURE_2D);
+}
+// Variables to store the last known mouse position
+int lastMouseX = 0;
+int lastMouseY = 0;
+
+// Variable to track if the mouse button is pressed
+bool isMousePressed = false;
+
+// Function to handle mouse button events
+void mouseXPLORE(int button, int state, int x, int y)
+{
+    // If the left mouse button is pressed down
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
+    {
+        // Store the current mouse position and set isMousePressed to true
+        lastMouseX = x;
+        lastMouseY = y;
+        isMousePressed = true;
+    }
+    // If the left mouse button is released
+    else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP)
+    {
+        // Set isMousePressed to false
+        isMousePressed = false;
+    }
+}
+
+// Function to handle mouse motion events
+void motionXPLORE(int x, int y)
+{
+    // If the mouse button is pressed
+    if (isMousePressed)
+    {
+        // Calculate the change in mouse position
+        int deltaX = x - lastMouseX;
+        int deltaY = y - lastMouseY;
+
+        // Rotate the camera based on the change in mouse position
+        glRotatef(-deltaX * 0.01, 1.0, 0.0, 0.0);
+        glRotatef(-deltaY * 0.01, 0.0, 1.0, 0.0);
+    }
+    // Redraw the scene
+    glutPostRedisplay();
+}
+
 void init(void)
 {
     glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -56,37 +225,120 @@ void init(void)
     lighting(); // Enable lighting effects
 }
 
-void init(void);
-void display(void);
-void keyboard(unsigned char, int, int);
-void resize(int, int);
-void draw_star(float, float);
-void house(float, float, float);
-void apart(float, float, float);
-void circle1(float);
-void stand(float, float, float);
-void time(int);
 float h = 5, h1 = 6, d1 = 4, g = 1, g1 = 2;
 
-int main(int argc, char **argv)
+void drawHouse(float posX, float posY, float posZ)
 {
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-    glutInitWindowSize(1100, 1100);
-    glutInitWindowPosition(100, 10);
-    glutCreateWindow("3D map");
-    init();
+    // Set the color to dark blue
+    setMaterialColor(0.01, 0.05, 0.3);
+    glColor3f(0.01, 0.05, 0.3);
 
-    glutDisplayFunc(display);
-    glutKeyboardFunc(keyboard);
-    glutReshapeFunc(resize);
-    glutTimerFunc(100, time, 0); // Set the timer to call the time function in 100 milliseconds
+    // Draw the front wall of the drawHouse
+    glBegin(GL_POLYGON);
+    glVertex3f(posX, posY, posZ);
+    glVertex3f(posX, posY, posZ + 30);
+    glVertex3f(posX, posY + 15, posZ + 30);
+    glVertex3f(posX, posY + 15, posZ);
+    glEnd();
 
-    glutMainLoop();
-    return 0;
+    // Draw the left wall of the drawHouse
+    glBegin(GL_POLYGON);
+    glVertex3f(posX - 15, posY, posZ);
+    glVertex3f(posX - 15, posY + 15, posZ);
+    glVertex3f(posX - 15, posY + 15, posZ + 30);
+    glVertex3f(posX - 15, posY, posZ + 30);
+    glEnd();
+
+    // Draw the back wall of the drawHouse
+    glBegin(GL_POLYGON);
+    glVertex3f(posX, posY, posZ + 30);
+    glVertex3f(posX - 15, posY, posZ + 30);
+    glVertex3f(posX - 15, posY + 15, posZ + 30);
+    glVertex3f(posX, posY + 15, posZ + 30);
+    glEnd();
+
+    // Draw the right wall of the drawHouse
+    glBegin(GL_POLYGON);
+    glVertex3f(posX - 15, posY, posZ);
+    glVertex3f(posX - 15, posY + 15, posZ);
+    glVertex3f(posX, posY + 15, posZ);
+    glVertex3f(posX, posY, posZ);
+    glEnd();
+
+    // Draw the bottom of the drawHouse
+    glBegin(GL_POLYGON);
+    glVertex3f(posX - 15, posY, posZ);
+    glVertex3f(posX, posY, posZ);
+    glVertex3f(posX, posY, posZ + 30);
+    glVertex3f(posX - 15, posY, posZ + 30);
+    glEnd();
+
+    // Set the color to red
+    setMaterialColor(0.51, 0.015, 0.008);
+    glColor3f(0.51, 0.015, 0.008);
+
+    // Draw the left side of the roof
+    glBegin(GL_POLYGON);
+    glVertex3f(posX + 1.69 * 3, posY + 3.5 * 3, posZ);
+    glVertex3f(posX - 2.5 * 3, posY + 7.5 * 3, posZ);
+    glVertex3f(posX - 2.5 * 3, posY + 7.5 * 3, posZ + 30);
+    glVertex3f(posX + 1.69 * 3, posY + 3.5 * 3, posZ + 30);
+    glEnd();
+
+    // Draw the right side of the roof
+    glBegin(GL_POLYGON);
+    glVertex3f(posX - 6.69 * 3, posY + 3.5 * 3, posZ);
+    glVertex3f(posX - 6.69 * 3, posY + 3.5 * 3, posZ + 30);
+    glVertex3f(posX - 2.5 * 3, posY + 7.5 * 3, posZ + 30);
+    glVertex3f(posX - 2.5 * 3, posY + 7.5 * 3, posZ);
+    glEnd();
+
+    // Set the color to purple
+    setMaterialColor(0.1, 0.015, 0.13);
+    glColor3f(0.1, 0.015, 0.13);
+
+    // Draw the front side of the roof
+    glBegin(GL_POLYGON);
+    glVertex3f(posX, posY + 15, posZ);
+    glVertex3f(posX - 15, posY + 5, posZ);
+    glVertex3f(posX - 2.5 * 3, posY + 7.5 * 3, posZ);
+    glEnd();
+
+    // Draw the back side of the roof
+    glBegin(GL_POLYGON);
+    glVertex3f(posX, posY + 15, posZ + 30);
+    glVertex3f(posX - 15, posY + 15, posZ + 30);
+    glVertex3f(posX - 2.5 * 3, posY + 7.5 * 3, posZ + 30);
+    glEnd();
 }
 
-void apart(float x, float y, float z)
+void drawStar(GLfloat starCenterX, GLfloat starCenterY)
+{
+    // Set the color to white
+    setMaterialColor(1.0, 1.0, 1.0);
+    glColor3f(1.0, 1.0, 1.0);
+
+    // Start drawing a polygon
+    glBegin(GL_POLYGON);
+
+    // Define the vertices of the star
+    glVertex2f(starCenterX, starCenterY);
+    glVertex2f(starCenterX + 1.5, starCenterY - 4);
+    glVertex2f(starCenterX + 6.5, starCenterY - 5.5);
+    glVertex2f(starCenterX + 2.5, starCenterY - 9);
+    glVertex2f(starCenterX + 4.5, starCenterY - 14);
+    glVertex2f(starCenterX, starCenterY - 11.5);
+    glVertex2f(starCenterX - 4.5, starCenterY - 14);
+    glVertex2f(starCenterX - 3, starCenterY - 9);
+    glVertex2f(starCenterX - 6.5, starCenterY - 5.5);
+    glVertex2f(starCenterX - 1.5, starCenterY - 5);
+    glVertex2f(starCenterX, starCenterY);
+
+    // End drawing the polygon
+    glEnd();
+}
+
+void draw_window(float x, float y, float z)
 {
     int i;
     int j;
@@ -322,254 +574,112 @@ void apart(float x, float y, float z)
     glEnd();
 }
 
-void house(float x, float y, float z)
+void drawStand(float posX, float posY, float posZ)
 {
-    setMaterialColor(0.01, 0.05, 0.3);
-    glColor3f(0.01, 0.05, 0.3);
-    glBegin(GL_POLYGON);
-    glVertex3f(x, y, z);
-    glVertex3f(x, y, z + 30);
-    glVertex3f(x, y + 15, z + 30);
-    glVertex3f(x, y + 15, z);
-    glEnd();
-
-    setMaterialColor(0.01, 0.05, 0.3);
-    glColor3f(0.01, 0.05, 0.3);
-    glBegin(GL_POLYGON);
-    glVertex3f(x - 15, y, z);
-    glVertex3f(x - 15, y + 15, z);
-    glVertex3f(x - 15, y + 15, z + 30);
-    glVertex3f(x - 15, y, z + 30);
-    glEnd();
-
-    setMaterialColor(0.01, 0.05, 0.3);
-    glColor3f(0.01, 0.05, 0.3);
-    glBegin(GL_POLYGON);
-    glVertex3f(x, y, z + 30);
-    glVertex3f(x - 15, y, z + 30);
-    glVertex3f(x - 15, y + 15, z + 30);
-    glVertex3f(x, y + 15, z + 30);
-    glEnd();
-
-    setMaterialColor(0.01, 0.05, 0.3);
-    glColor3f(0.01, 0.05, 0.3);
-    glBegin(GL_POLYGON);
-    glVertex3f(x - 15, y, z);
-    glVertex3f(x - 15, y + 15, z);
-    glVertex3f(x, y + 15, z);
-    glVertex3f(x, y, z);
-    glEnd();
-
-    setMaterialColor(0.01, 0.05, 0.3);
-    glColor3f(0.01, 0.05, 1.5);
-    glBegin(GL_POLYGON);
-    glVertex3f(x - 15, y, z);
-    glVertex3f(x, y, z);
-    glVertex3f(x, y, z + 30);
-    glVertex3f(x - 15, y, z + 30);
-    glEnd();
-
-    setMaterialColor(0.51, 0.015, 0.008);
-    glColor3f(0.51, 0.015, 0.008);
-    glBegin(GL_POLYGON);
-    glVertex3f(x + 1.69 * 3, y + 3.5 * 3, z);
-    glVertex3f(x - 2.5 * 3, y + 7.5 * 3, z);
-    glVertex3f(x - 2.5 * 3, y + 7.5 * 3, z + 30);
-    glVertex3f(x + 1.69 * 3, y + 3.5 * 3, z + 30);
-    glEnd();
-
-    setMaterialColor(0.51, 0.015, 0.008);
-    glColor3f(0.51, 0.015, 0.008);
-    glBegin(GL_POLYGON);
-    glVertex3f(x - 6.69 * 3, y + 3.5 * 3, z);
-    glVertex3f(x - 6.69 * 3, y + 3.5 * 3, z + 30);
-    glVertex3f(x - 2.5 * 3, y + 7.5 * 3, z + 30);
-    glVertex3f(x - 2.5 * 3, y + 7.5 * 3, z);
-    glEnd();
-
-    setMaterialColor(0.1, 0.015, 0.13);
-    glColor3f(0.1, 0.015, 0.13);
-    glBegin(GL_POLYGON);
-    glVertex3f(x, y + 15, z);
-    glVertex3f(x - 15, y + 5, z);
-    glVertex3f(x - 2.5 * 3, y + 7.5 * 3, z);
-    glEnd();
-
-    setMaterialColor(0.1, 0.015, 0.13);
-    glColor3f(0.1, 0.015, 0.13);
-    glBegin(GL_POLYGON);
-    glVertex3f(x, y + 15, z + 30);
-    glVertex3f(x - 15, y + 15, z + 30);
-    glVertex3f(x - 2.5 * 3, y + 7.5 * 3, z + 30);
-    glEnd();
-}
-
-void house1()
-{
-
-    house(120, 0.1, 50);
-
-    house(120, 0.1, 90);
-
-    house(160, 0.1, 90);
-
-    house(80, 0.1, 90);
-
-    house(160, 0.1, 50);
-
-    house(80, 0.1, 50);
-
-    house(-130, 0.1, 120);
-
-    house(-130, 0.1, 160);
-
-    house(-90, 0.1, 120);
-
-    house(-60, 0.1, 120);
-
-    house(-90, 0.1, 160);
-
-    stand(-10, 6, 130);
-    stand(30, 6, 130);
-
-    house(-60, 0.1, 160);
-    apart(150, 0, -150);
-    apart(80, 0, -90);
-
-    apart(150, 0, -90);
-    apart(150, 0, -30);
-
-    apart(-150, 0, -30);
-    apart(-150, 0, -110);
-
-    apart(-150, 0, -180);
-}
-void circle1(float c[20][2])
-{
-    float x = 0, y = 03;
-    int i;
-    for (i = 0; i < 20; i++)
-    {
-        c[i][0] = x * cos((i + 1) * 36 * (3.142 / 360)) - y * sin((i + 1) * 36 * (3.142 / 360));
-        c[i][1] = x * sin((i + 1) * 36 * (3.142 / 360)) + y * cos((i + 1) * 36 * (3.142 / 360));
-    }
-
-    for (i = 0; i < 19; i++)
-    {
-        glBegin(GL_POLYGON);
-        glVertex3f(c[i][0], c[i][1], 0);
-        glVertex3f(c[i][0], c[i][1], 40);
-        glVertex3f(c[i + 1][0], c[i + 1][1], 40);
-        glVertex3f(c[i + 1][0], c[i + 1][1], 0);
-        glEnd();
-    }
-
-    glBegin(GL_POLYGON);
-    glVertex3f(c[0][0], c[0][1], 0);
-    glVertex3f(c[0][0], c[0][1], 40);
-    glVertex3f(c[19][0], c[19][1], 40);
-    glVertex3f(c[19][0], c[19][1], 0);
-    glEnd();
-}
-
-// void init(void)
-// {
-// 		glClearColor(0.0,0.0,0.0,0.0);
-// glEnable(GL_DEPTH_TEST);
-// 	glMatrixMode(GL_MODELVIEW);
-// }
-
-void draw_star(GLfloat x, GLfloat y)
-{
-    setMaterialColor(1.0, 1.0, 1.0);
-    glColor3f(1.0, 1.0, 1.0);
-    glBegin(GL_POLYGON);
-    glVertex2f(x, y);
-    glVertex2f(x + 1.5, y - 4);
-    glVertex2f(x + 6.5, y - 5.5);
-    glVertex2f(x + 2.5, y - 9);
-    glVertex2f(x + 4.5, y - 14);
-    glVertex2f(x, y - 11.5);
-    glVertex2f(x - 4.5, y - 14);
-    glVertex2f(x - 3, y - 9);
-    glVertex2f(x - 6.5, y - 5.5);
-    glVertex2f(x - 1.5, y - 5);
-    glVertex2f(x, y);
-    glEnd();
-}
-
-void stand(float x, float y, float z)
-{
+    // Set the color to yellow
     setMaterialColor(1, 0.8, 0);
     glColor3f(1, 0.8, 0);
+
+    // Draw the front face of the drawStand
     glBegin(GL_POLYGON);
-    glVertex3f(x, y, z);
-    glVertex3f(x, y - h1, z + d1);
-    glVertex3f(x + h, y - h1, z + d1);
-    glVertex3f(x + h, y, z);
+    glVertex3f(posX, posY, posZ);
+    glVertex3f(posX, posY - h1, posZ + d1);
+    glVertex3f(posX + h, posY - h1, posZ + d1);
+    glVertex3f(posX + h, posY, posZ);
     glEnd();
 
+    // Set the color to orange
     setMaterialColor(1, 0.5, 0);
     glColor3f(1, 0.5, 0);
+
+    // Draw the back face of the drawStand
     glBegin(GL_POLYGON);
-    glVertex3f(x, y, z);
-    glVertex3f(x + h, y, z);
-    glVertex3f(x + h, y - h1, z - d1);
-    glVertex3f(x, y - h1, z - d1);
+    glVertex3f(posX, posY, posZ);
+    glVertex3f(posX + h, posY, posZ);
+    glVertex3f(posX + h, posY - h1, posZ - d1);
+    glVertex3f(posX, posY - h1, posZ - d1);
     glEnd();
 
+    // Set the color to purple
     setMaterialColor(0.6, 0.12, 0.4);
     glColor3f(0.6, 0.12, 0.4);
 
+    // Draw the left side of the drawStand
     glBegin(GL_POLYGON);
-    glVertex3f(x, y - h1, z + d1);
-    glVertex3f(x, y - h1 - 2, z + d1);
-    glVertex3f(x + 1, y - h1 - 2, z + d1);
-    glVertex3f(x + 1, y - h1, z + d1);
+    glVertex3f(posX, posY - h1, posZ + d1);
+    glVertex3f(posX, posY - h1 - 2, posZ + d1);
+    glVertex3f(posX + 1, posY - h1 - 2, posZ + d1);
+    glVertex3f(posX + 1, posY - h1, posZ + d1);
     glEnd();
 
-    setMaterialColor(0.6, 0.12, 0.4);
-    glColor3f(0.6, 0.12, 0.4);
+    // Draw the right side of the drawStand
     glBegin(GL_POLYGON);
-    glVertex3f(x + h, y - h1, z + d1);
-    glVertex3f(x + h, y - h1 - 2, z + d1);
-    glVertex3f(x + h - 1, y - h1 - 2, z + d1);
-    glVertex3f(x + h - 1, y - h1, z + d1);
+    glVertex3f(posX + h, posY - h1, posZ + d1);
+    glVertex3f(posX + h, posY - h1 - 2, posZ + d1);
+    glVertex3f(posX + h - 1, posY - h1 - 2, posZ + d1);
+    glVertex3f(posX + h - 1, posY - h1, posZ + d1);
     glEnd();
 
-    setMaterialColor(0.6, 0.12, 0.4);
-    glColor3f(0.6, 0.12, 0.4);
-
+    // Draw the bottom side of the drawStand
     glBegin(GL_POLYGON);
-    glVertex3f(x, y - h1, z - d1);
-    glVertex3f(x, y - h1 - 2, z - d1);
-    glVertex3f(x + 1, y - h1 - 2, z - d1);
-    glVertex3f(x + 1, y - h1, z - d1);
+    glVertex3f(posX, posY - h1, posZ - d1);
+    glVertex3f(posX, posY - h1 - 2, posZ - d1);
+    glVertex3f(posX + 1, posY - h1 - 2, posZ - d1);
+    glVertex3f(posX + 1, posY - h1, posZ - d1);
     glEnd();
 
-    setMaterialColor(0.6, 0.12, 0.4);
-    glColor3f(0.6, 0.12, 0.4);
-
+    // Draw the top side of the drawStand
     glBegin(GL_POLYGON);
-    glVertex3f(x + h, y - h1, z - d1);
-    glVertex3f(x + h, y - h1 - 2, z - d1);
-    glVertex3f(x + h - 1, y - h1 - 2, z - d1);
-    glVertex3f(x + h - 1, y - h1, z - d1);
+    glVertex3f(posX + h, posY - h1, posZ - d1);
+    glVertex3f(posX + h, posY - h1 - 2, posZ - d1);
+    glVertex3f(posX + h - 1, posY - h1 - 2, posZ - d1);
+    glVertex3f(posX + h - 1, posY - h1, posZ - d1);
     glEnd();
 }
 
-void display(void)
+void DRAW()
 {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if (isDaylight) // Only draw the sun during daylight
-    {
-        drawSun();
-    }
+    drawHouse(120, 0.1, 50);
 
-    lighting(); // Set up lighting
+    drawHouse(120, 0.1, 90);
 
-    /* draw the floor */
+    drawHouse(160, 0.1, 90);
+
+    drawHouse(80, 0.1, 90);
+
+    drawHouse(160, 0.1, 50);
+
+    drawHouse(80, 0.1, 50);
+
+    drawHouse(-130, 0.1, 120);
+
+    drawHouse(-130, 0.1, 160);
+
+    drawHouse(-90, 0.1, 120);
+
+    drawHouse(-60, 0.1, 120);
+
+    drawHouse(-90, 0.1, 160);
+
+    drawStand(-10, 6, 130);
+    drawStand(30, 6, 130);
+
+    drawHouse(-60, 0.1, 160);
+    draw_window(150, 0, -150);
+    draw_window(80, 0, -90);
+
+    draw_window(150, 0, -90);
+    draw_window(150, 0, -30);
+
+    draw_window(-150, 0, -30);
+    draw_window(-150, 0, -110);
+
+    draw_window(-150, 0, -180);
+}
+
+void drawFloor()
+{
     glBegin(GL_QUADS);
     glColor3f(0.8, 0.6, 0.4);
     glVertex3f(-200.0, 0.0, -200.0);
@@ -581,18 +691,24 @@ void display(void)
     glVertex3f(200.0, 0.0, -200.0);
     glEnd();
     glFlush();
+}
 
-    draw_star(20, 240);
-    draw_star(180, 220);
-    draw_star(-30, 280);
-    draw_star(190, 280);
-    draw_star(100, 220);
-    draw_star(-230, 250);
-    draw_star(-190, 210);
-    draw_star(-88, 260);
-    draw_star(88, 270);
-    draw_star(-170, 280);
+void drawStars()
+{
+    drawStar(20, 240);
+    drawStar(180, 220);
+    drawStar(-30, 280);
+    drawStar(190, 280);
+    drawStar(100, 220);
+    drawStar(-230, 250);
+    drawStar(-190, 210);
+    drawStar(-88, 260);
+    drawStar(88, 270);
+    drawStar(-170, 280);
+}
 
+void drawCubes()
+{
     setMaterialColor(0.3, 0.015, 0.13);
     glColor3f(0.3, 0.015, 0.13);
     glPushMatrix();
@@ -641,6 +757,10 @@ void display(void)
     glTranslatef(-15, 1, -160);
     glutSolidCube(7);
     glPopMatrix();
+}
+
+void drawSpheres()
+{
 
     setMaterialColor(0.015, 0.3, 0.13);
     glColor3f(0.015, 0.3, 0.13);
@@ -704,7 +824,10 @@ void display(void)
     glutSolidSphere(10, 15, 4);
     glFlush();
     glPopMatrix();
+}
 
+void drawRoads()
+{
     setMaterialColor(0.2, 0.2, 0.2);
     glBegin(GL_QUADS);
     glColor3f(0.2, 0.2, 0.2);
@@ -788,81 +911,176 @@ void display(void)
     glColor3f(0.2, 0.2, 0.2);
     glVertex3f(-80, 0.01, -200);
     glEnd();
-    house1();
+}
+
+void deleteTextures()
+{
+    glDeleteTextures(1, &texture1);
+    glDeleteTextures(1, &texture2);
+}
+void display(void)
+{
+    // Clear the color and depth buffers
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Draw the sun if it's daylight
+    if (isDaylight)
+    {
+        drawSun();
+    }
+
+    // Set up lighting
+    lighting();
+
+    // Load textures
+    loadTextures();
+
+    // Draw the billboard
+    drawBillboard(-5, 25, 200, 20, 10);
+
+    // Draw the floor
+    drawFloor();
+
+    // Draw stars
+    drawStars();
+
+    // Draw cubes
+    drawCubes();
+
+    // Draw spheres
+    drawSpheres();
+
+    // Draw roads
+    drawRoads();
+
+    // Draw the house
+    DRAW();
+
+    // Delete textures
+    deleteTextures();
+
+    // Flush the OpenGL commands and swap the buffers
     glFlush();
     glutSwapBuffers();
 }
 
 void keyboard(unsigned char key, int x, int y)
 {
+    // Define the translation and rotation amounts
+    float translateAmount = 5.0;
+    float rotateAmount = 2.0;
+    float scaleAmount = 0.1;
 
     switch (key)
     {
+    // Move left
     case 'a':
     case 'A':
-        glTranslatef(5.0, 0.0, 0.0);
+        glTranslatef(translateAmount, 0.0, 0.0);
         break;
+
+    // Move right
     case 'd':
     case 'D':
-        glTranslatef(-5.0, 0.0, 0.0);
+        glTranslatef(-translateAmount, 0.0, 0.0);
         break;
+
+    // Move forward
     case 'w':
     case 'W':
-        glTranslatef(0.0, 0.0, 5.0);
+        glTranslatef(0.0, 0.0, translateAmount);
         break;
+
+    // Move backward
     case 's':
     case 'S':
-        glTranslatef(0.0, 0.0, -5.0);
+        glTranslatef(0.0, 0.0, -translateAmount);
         break;
+
+    // Rotate left around x-axis
     case 'q':
     case 'Q':
-        glRotatef(-2, 1.0, 0.0, 0.0);
+        glRotatef(-rotateAmount, 1.0, 0.0, 0.0);
         break;
+
+    // Rotate right around y-axis
     case 'e':
     case 'E':
-        glRotatef(2, 0.0, 1.0, 0.0);
+        glRotatef(rotateAmount, 0.0, 1.0, 0.0);
         break;
+
+    // Rotate up around z-axis
     case 'r':
     case 'R':
-        glRotatef(2, 0.0, 0.0, 1.0); // Rotate camera up
+        glRotatef(rotateAmount, 0.0, 0.0, 1.0);
         break;
+
+    // Rotate down around z-axis
     case 'f':
     case 'F':
-        glRotatef(-2, 0.0, 0.0, 1.0); // Rotate camera down
+        glRotatef(-rotateAmount, 0.0, 0.0, 1.0);
         break;
+
+    // Zoom in
     case '+':
-        glScalef(1.1, 1.1, 1.1); // Zoom in
+        glScalef(1.0 + scaleAmount, 1.0 + scaleAmount, 1.0 + scaleAmount);
         break;
+
+    // Zoom out
     case '-':
-        glScalef(0.9, 0.9, 0.9); // Zoom out
+        glScalef(1.0 - scaleAmount, 1.0 - scaleAmount, 1.0 - scaleAmount);
         break;
+
+    // Additional rotation controls
     case 'j':
     case 'J':
-        glRotatef(-2, 1.0, 0.0, 0.0); // Rotate camera left around x-axis
+        glRotatef(-rotateAmount, 1.0, 0.0, 0.0);
         break;
     case 'l':
     case 'L':
-        glRotatef(2, 1.0, 0.0, 0.0); // Rotate camera right around x-axis
+        glRotatef(rotateAmount, 1.0, 0.0, 0.0);
         break;
     case 'i':
     case 'I':
-        glRotatef(-2, 0.0, 1.0, 0.0); // Rotate camera up around y-axis
+        glRotatef(-rotateAmount, 0.0, 1.0, 0.0);
         break;
     case 'k':
     case 'K':
-        glRotatef(2, 0.0, 1.0, 0.0); // Rotate camera down around y-axis
+        glRotatef(rotateAmount, 0.0, 1.0, 0.0);
         break;
     case 'u':
     case 'U':
-        glRotatef(-2, 0.0, 0.0, 1.0); // Rotate camera counterclockwise around z-axis
+        glRotatef(-rotateAmount, 0.0, 0.0, 1.0);
         break;
     case 'o':
     case 'O':
-        glRotatef(2, 0.0, 0.0, 1.0); // Rotate camera clockwise around z-axis
+        glRotatef(rotateAmount, 0.0, 0.0, 1.0);
         break;
     }
 
+    // Redraw the scene
     glutPostRedisplay();
+}
+void resize(int width, int height)
+{
+    // Prevent division by zero
+    if (height == 0)
+        height = 1;
+
+    // Set the projection matrix as the current matrix
+    glMatrixMode(GL_PROJECTION);
+
+    // Reset the projection matrix
+    glLoadIdentity();
+
+    // Set up a perspective projection
+    gluPerspective(80.0, static_cast<float>(width) / height, 1.0, 600.0);
+
+    // Move the camera back
+    glTranslatef(0.0, -15.0, -320.0);
+
+    // Set the modelview matrix as the current matrix
+    glMatrixMode(GL_MODELVIEW);
 }
 
 void time(int value)
@@ -883,17 +1101,49 @@ void time(int value)
     glutPostRedisplay();         // Force a redisplay
     glutTimerFunc(100, time, 0); // Set the timer to call this function again in 100 milliseconds
 }
-void resize(int width, int height)
+
+// The main function
+int main(int argc, char **argv)
 {
-    if (height == 0)
-        height = 1;
+    // Initialize the GLUT library
+    glutInit(&argc, argv);
 
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
+    // Set the initial display mode (double buffering and RGB color)
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
 
-    gluPerspective(80.0, width / height, 1.0, 600.0);
+    // Set the initial window size
+    glutInitWindowSize(1100, 1100);
 
-    glTranslatef(0.0, -15.0, -320.0);
+    // Set the initial window position
+    glutInitWindowPosition(100, 10);
 
-    glMatrixMode(GL_MODELVIEW);
+    // Create the window with a title
+    glutCreateWindow("3D CITY- METROPOLIS");
+
+    // Call the initialization function
+    init();
+
+    // Set the display callback for the window
+    glutDisplayFunc(display);
+
+    // Set the keyboard callback for the window
+    glutKeyboardFunc(keyboard);
+
+    // Set the mouse callback for the window
+    glutMouseFunc(mouseXPLORE);
+
+    // Set the motion callback for the window
+    glutMotionFunc(motionXPLORE);
+
+    // Set the reshape callback for the window
+    glutReshapeFunc(resize);
+
+    // Set a timer to call the 'time' function after 100 milliseconds
+    glutTimerFunc(100, time, 0);
+
+    // Enter the GLUT event processing loop
+    glutMainLoop();
+
+    // Return 0 to indicate successful execution
+    return 0;
 }
